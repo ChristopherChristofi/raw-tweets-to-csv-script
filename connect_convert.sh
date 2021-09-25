@@ -4,9 +4,11 @@ declare -A data_files
 
 function show_help {
     echo "Help: $(basename $0)" 2>&1
-    echo '  -s save generated processing and source files'
+    echo '  -d set CSV output filename, example: tweet_data'
+    echo '  -o set filepath for data output, example: datasets'
     echo '  -r remove retweets from gathered twitter dataset'
     echo '  -k provide set of search keywords, example: cat,dog,mouse'
+    echo '  -s save generated processing and source files'
     exit 1
 }
 
@@ -32,19 +34,15 @@ function format_hashtags {
 init=$(date +'%s')
 delete_processing_files='true'
 remove_retweets='false'
-
-data_files[API_DATA]="./_RTTCS_api_output_${init}.jsonl"
-data_files[NORETWEET_DATA]="./_RTTCS_noretweet_${init}.jsonl"
-data_files[PROCESS_DATA]="./_RTTCS_process_${init}.jsonl"
-data_files[OUTPUT_DATA]="./RTTCS_data_${init}.csv"
-data_files[HASHTAG_DATA]="./RTTCS_hashtag_${init}.csv"
+output_path=''
+output_file='RTTCS_data'
 
 # qualify no option provided
 if [[ ${#} -eq 0 ]]; then
     show_help
 fi
 
-optstring=":hrsk:"
+optstring=":hrsd:o:k:"
 
 while getopts ${optstring} arg; do
     case "${arg}" in
@@ -53,6 +51,14 @@ while getopts ${optstring} arg; do
             ;;
         r)
             remove_retweets='true'
+            ;;
+        o)
+            set -f
+            output_path+="/$OPTARG"
+            ;;
+        d)
+            set -f
+            output_file="$OPTARG"
             ;;
         k)
             set -f
@@ -76,6 +82,12 @@ while getopts ${optstring} arg; do
     esac
 done
 
+data_files[API_DATA]=".${output_path}/_RTTCS_api_output_${init}.jsonl"
+data_files[NORETWEET_DATA]=".${output_path}/_RTTCS_noretweet_${init}.jsonl"
+data_files[PROCESS_DATA]=".${output_path}/_RTTCS_process_${init}.jsonl"
+data_files[OUTPUT_DATA]=".${output_path}/${output_file}_${init}.csv"
+data_files[HASHTAG_DATA]=".${output_path}/${output_file}_hashtag_${init}.csv"
+
 echo "Searching Twitter API for: ${search_params}"
 search_twitterAPI "${search_params}" "${data_files[API_DATA]}" \
 && [[ ${remove_retweets} == 'true' ]] \
@@ -83,7 +95,7 @@ search_twitterAPI "${search_params}" "${data_files[API_DATA]}" \
 && format_tweets "${data_files[NORETWEET_DATA]}" "${data_files[PROCESS_DATA]}" "${data_files[OUTPUT_DATA]}" \
 && format_hashtags "${data_files[NORETWEET_DATA]}" "${data_files[HASHTAG_DATA]}" \
 || format_tweets "${data_files[API_DATA]}" "${data_files[PROCESS_DATA]}" "${data_files[OUTPUT_DATA]}" \
-&& format_hashtags "${data_files[API_DATA]}" "${data_files[HASHTAG_DATA]}";
+&& format_hashtags "${data_files[API_DATA]}" "${data_files[HASHTAG_DATA]}"
 
 [[ ${delete_processing_files} == 'true' ]] \
 && [[ ${remove_retweets} == 'true' ]] \
