@@ -8,6 +8,7 @@ function show_help {
     echo '  -o set filepath for data output, example: datasets'
     echo '  -r remove retweets from gathered twitter dataset'
     echo '  -k provide set of search keywords, example: cat,dog,mouse'
+    echo '  -v set verbose mode, enable message printing'
     echo '  -s save generated processing and source files'
     exit 1
 }
@@ -31,6 +32,10 @@ function format_hashtags {
     cat $1 | jq -cr '. | {tweet_id: .id_str, hashtag: .entities.hashtags[].text} | [.tweet_id, .hashtag] | @csv' > $2
 }
 
+function print_msg {
+    [[ ${verbose} == 'true' ]] && echo $1
+}
+
 init=$(date +'%s')
 delete_processing_files='true'
 remove_retweets='false'
@@ -38,14 +43,15 @@ output_path=''
 output_file='RTTCS_data'
 
 # qualify no option provided
-if [[ ${#} -eq 0 ]]; then
-    show_help
-fi
+[[ ${#} -eq 0 ]] && show_help
 
-optstring=":hrsd:o:k:"
+optstring=":hrsvd:o:k:"
 
 while getopts ${optstring} arg; do
     case "${arg}" in
+        v)
+            verbose='true'
+            ;;
         s)
             delete_processing_files='false'
             ;;
@@ -88,7 +94,7 @@ data_files[PROCESS_DATA]=".${output_path}/_RTTCS_process_${init}.jsonl"
 data_files[OUTPUT_DATA]=".${output_path}/${output_file}_${init}.csv"
 data_files[HASHTAG_DATA]=".${output_path}/${output_file}_hashtag_${init}.csv"
 
-echo "Searching Twitter API for: ${search_params}"
+print_msg "Searching Twitter API for: ${search_params}"
 search_twitterAPI "${search_params}" "${data_files[API_DATA]}" \
 && [[ ${remove_retweets} == 'true' ]] \
 && deselect_retweets "${data_files[API_DATA]}" "${data_files[NORETWEET_DATA]}" \
@@ -97,11 +103,16 @@ search_twitterAPI "${search_params}" "${data_files[API_DATA]}" \
 || format_tweets "${data_files[API_DATA]}" "${data_files[PROCESS_DATA]}" "${data_files[OUTPUT_DATA]}" \
 && format_hashtags "${data_files[API_DATA]}" "${data_files[HASHTAG_DATA]}"
 
+print_msg "File created: ${data_files[OUTPUT_DATA]}"
+print_msg "File created: ${data_files[HASHTAG_DATA]}"
+
 [[ ${delete_processing_files} == 'true' ]] \
 && [[ ${remove_retweets} == 'true' ]] \
 && rm ${data_files[API_DATA]} ${data_files[NORETWEET_DATA]} ${data_files[PROCESS_DATA]} \
 || [[ ${delete_processing_files} == 'true' ]] \
 && [[ ${remove_retweets} == 'false' ]] \
 && rm ${data_files[API_DATA]} ${data_files[PROCESS_DATA]}
+
+print_msg "Tweet data extracted and format conversion complete."
 
 exit 0
