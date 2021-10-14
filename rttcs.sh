@@ -8,6 +8,7 @@ function show_help {
     echo '  -o set filepath for data output, example: datasets'
     echo '  -r remove retweets from gathered twitter dataset'
     echo '  -k provide set of search keywords, example: cat,dog,mouse'
+    echo '  -a set logical operator for search query as AND, default: OR'
     echo '  -v set verbose mode, enable message printing'
     echo '  -s save generated processing and source files'
     exit 1
@@ -41,14 +42,18 @@ delete_processing_files='true'
 remove_retweets='false'
 output_path=''
 output_file='RTTCS_data'
+search_op='OR'
 
 # qualify no option provided
 [[ ${#} -eq 0 ]] && show_help
 
-optstring=":hrsvd:o:k:"
+optstring=":harsvd:o:k:"
 
 while getopts ${optstring} arg; do
     case "${arg}" in
+        a)
+            search_op='AND'
+            ;;
         v)
             verbose='true'
             ;;
@@ -75,7 +80,7 @@ while getopts ${optstring} arg; do
             # search query from input of keywords array
             [[ ${#keywords[@]} -gt 1 ]] && \
             for ((i = 1 ; i < ${#keywords[@]} ; ++i)); do
-                search_params+=" OR ${keywords[i]}"
+                search_params+=" ${search_op} ${keywords[i]}"
             done
             ;;
         h)
@@ -88,6 +93,7 @@ while getopts ${optstring} arg; do
     esac
 done
 
+# filepath naming conventions
 data_files[API_DATA]=".${output_path}/_RTTCS_api_output_${init}.jsonl"
 data_files[NORETWEET_DATA]=".${output_path}/_RTTCS_noretweet_${init}.jsonl"
 data_files[PROCESS_DATA]=".${output_path}/_RTTCS_process_${init}.jsonl"
